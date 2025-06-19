@@ -27,6 +27,7 @@
 	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
 	 */
 
+
 	/**
 	 * Environment Variables
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
