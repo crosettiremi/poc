@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Propose New Success Criterion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <div class="bg-white rounded-lg shadow-lg p-6 md:p-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Propose New Success Criterion</h1>
+            <p class="text-gray-600 mb-6">Submit a new Use Case, Product, Success Criterion, and Measurement for review. It will be added to the system after approval.</p>
+            <a href="/" class="text-blue-600 hover:underline mb-6 block">&larr; Back to Report Generator</a>
+            
+            <form id="proposeNewCriterionForm" class="space-y-6">
+                <div>
+                    <label for="newUseCaseName" class="block text-sm font-medium text-gray-700 mb-1">Use Case Name</label>
+                    <input type="text" id="newUseCaseName" name="newUseCaseName" required
+                           class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                           placeholder="e.g., User Authentication">
+                </div>
+                <div>
+                    <label for="newProductName" class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+                    <input type="text" id="newProductName" name="newProductName" required
+                           class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                           placeholder="e.g., Web Application">
+                </div>
+                <div>
+                    <label for="newSuccessCriterion" class="block text-sm font-medium text-gray-700 mb-1">Success Criterion</label>
+                    <textarea id="newSuccessCriterion" name="newSuccessCriterion" rows="3" required
+                              class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                              placeholder="e.g., User can log in with valid credentials within 2 seconds."></textarea>
+                </div>
+                <div>
+                    <label for="newMeasurement" class="block text-sm font-medium text-gray-700 mb-1">Measurement</label>
+                    <textarea id="newMeasurement" name="newMeasurement" rows="2" required
+                              class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                              placeholder="e.g., Stopwatch timing from button click to dashboard visibility."></textarea>
+                </div>
+                <div>
+                    <button type="submit" id="submitProposalBtn"
+                            class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition duration-300 flex items-center justify-center">
+                        Submit New Criterion for Review
+                    </button>
+                </div>
+            </form>
+            
+        </div>
+        <div id="formFeedback" class="mt-4 text-sm"></div>
+    </div>
+
+    <script>
+        const proposeForm = document.getElementById('proposeNewCriterionForm');
+        const submitButton = document.getElementById('submitProposalBtn');
+        const formFeedback = document.getElementById('formFeedback');
+        const API_PROPOSE_NEW_CRITERION_URL = '/api/propose-new-criterion'; // Ensure this matches your backend
+
+        proposeForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            formFeedback.textContent = '';
+            formFeedback.className = 'mt-4 text-sm';
+
+            const formData = new FormData(proposeForm);
+            const useCaseName = formData.get('newUseCaseName').trim();
+            const productName = formData.get('newProductName').trim();
+            const successCriterion = formData.get('newSuccessCriterion').trim();
+            const measurement = formData.get('newMeasurement').trim();
+
+            if (!useCaseName || !productName || !successCriterion || !measurement) {
+                formFeedback.textContent = 'All fields are required.';
+                formFeedback.classList.add('text-red-600');
+                return;
+            }
+
+            const originalButtonText = submitButton.innerHTML;
+            submitButton.innerHTML = `<div class="spinner mr-2"></div> Submitting...`;
+            submitButton.disabled = true;
+
+            try {
+                const response = await fetch(API_PROPOSE_NEW_CRITERION_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ useCaseName, productName, successCriterion, measurement })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Submission failed with status ${response.status}. Response: ${errorText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    formFeedback.textContent = 'New criterion proposed successfully! It is now pending review.';
+                    formFeedback.classList.add('text-green-600');
+                    proposeForm.reset();
+                } else {
+                    throw new Error(result.error || 'Submission was not successful.');
+                }
+            } catch (error) {
+                console.error('Proposal submission error:', error);
+                formFeedback.textContent = `Error: ${error.message}`;
+                formFeedback.classList.add('text-red-600');
+            } finally {
+                submitButton.innerHTML = originalButtonText;
+                submitButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
