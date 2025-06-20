@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Update Use Case Criteria</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Propose New Success Criterion</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -25,121 +25,102 @@
 
     <div class="container mx-auto p-4 md:p-8">
         <div class="bg-white rounded-lg shadow-lg p-6 md:p-8">
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Update Success Criteria</h1>
-            <p class="text-gray-600 mb-6">Modify the success criteria for each entry below. Changes are saved individually.</p>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Propose New Success Criterion</h1>
+            <p class="text-gray-600 mb-6">Submit a new Use Case, Product, Success Criterion, and Measurement for review. It will be added to the system after approval.</p>
             <a href="/" class="text-blue-600 hover:underline mb-6 block">&larr; Back to Report Generator</a>
-
-            <div id="update-list-container" class="space-y-4">
-                <!-- Use cases will be loaded here -->
-            </div>
+            
+            <form id="proposeNewCriterionForm" class="space-y-6">
+                <div>
+                    <label for="newUseCaseName" class="block text-sm font-medium text-gray-700 mb-1">Use Case Name</label>
+                    <input type="text" id="newUseCaseName" name="newUseCaseName" required
+                           class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                           placeholder="e.g., User Authentication">
+                </div>
+                <div>
+                    <label for="newProductName" class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+                    <input type="text" id="newProductName" name="newProductName" required
+                           class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                           placeholder="e.g., Web Application">
+                </div>
+                <div>
+                    <label for="newSuccessCriterion" class="block text-sm font-medium text-gray-700 mb-1">Success Criterion</label>
+                    <textarea id="newSuccessCriterion" name="newSuccessCriterion" rows="3" required
+                              class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                              placeholder="e.g., User can log in with valid credentials within 2 seconds."></textarea>
+                </div>
+                <div>
+                    <label for="newMeasurement" class="block text-sm font-medium text-gray-700 mb-1">Measurement</label>
+                    <textarea id="newMeasurement" name="newMeasurement" rows="2" required
+                              class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                              placeholder="e.g., Stopwatch timing from button click to dashboard visibility."></textarea>
+                </div>
+                <div>
+                    <button type="submit" id="submitProposalBtn"
+                            class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition duration-300 flex items-center justify-center">
+                        Submit New Criterion for Review
+                    </button>
+                </div>
+            </form>
+            
         </div>
+        <div id="formFeedback" class="mt-4 text-sm"></div>
     </div>
 
     <script>
-        const updateListContainer = document.getElementById('update-list-container');
-        const API_USECASES_URL = '/api/usecases';
-        const API_UPDATE_CRITERION_URL = '/api/update-criterion';
+        const proposeForm = document.getElementById('proposeNewCriterionForm');
+        const submitButton = document.getElementById('submitProposalBtn');
+        const formFeedback = document.getElementById('formFeedback');
+        const API_PROPOSE_NEW_CRITERION_URL = '/api/propose-new-criterion'; // Ensure this matches your backend
 
-        /**
-         * On page load, fetch all use cases and render the update form.
-         */
-        document.addEventListener('DOMContentLoaded', async () => {
-            updateListContainer.innerHTML = `<div class="p-8 text-center"><div class="spinner inline-block"></div></div>`;
-            
-            try {
-                const response = await fetch(`${API_USECASES_URL}?useCase=all&product=all`);
-                if (!response.ok) throw new Error('Failed to fetch use cases.');
-                
-                const data = await response.json();
-                renderUpdateList(data);
-            } catch (error) {
-                console.error('Error loading data:', error);
-                updateListContainer.innerHTML = `<p class="text-red-500">Could not load data. Please ensure the worker is running and try again.</p>`;
-            }
-        });
+        proposeForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            formFeedback.textContent = '';
+            formFeedback.className = 'mt-4 text-sm';
 
-        /**
-         * Renders the list of use cases with input fields.
-         * @param {Array} data - The array of use case objects from the API.
-         */
-        function renderUpdateList(data) {
-            if (!data || data.length === 0) {
-                updateListContainer.innerHTML = '<p>No use cases found in the database.</p>';
+            const formData = new FormData(proposeForm);
+            const useCaseName = formData.get('newUseCaseName').trim();
+            const productName = formData.get('newProductName').trim();
+            const successCriterion = formData.get('newSuccessCriterion').trim();
+            const measurement = formData.get('newMeasurement').trim();
+
+            if (!useCaseName || !productName || !successCriterion || !measurement) {
+                formFeedback.textContent = 'All fields are required.';
+                formFeedback.classList.add('text-red-600');
                 return;
             }
 
-            let html = '';
-            data.forEach(item => {
-                html += `
-                    <div class="border border-gray-200 rounded-lg p-4" id="item-${item.id}">
-                        <div class="font-semibold text-gray-800">${item.UseCase}</div>
-                        <div class="text-sm text-gray-500 mb-2">${item.Product}</div>
-                        <div class="flex items-center space-x-2">
-                            <input 
-                                type="text" 
-                                value="${item.SuccessCriterion || ''}" 
-                                class="w-full p-2 border border-gray-300 rounded-md shadow-sm"
-                                placeholder="Enter success criterion..."
-                                id="input-${item.id}"
-                            >
-                            <button 
-                                class="update-btn bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 whitespace-nowrap"
-                                data-id="${item.id}"
-                            >
-                                Update
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-            updateListContainer.innerHTML = html;
-        }
-        
-        /**
-         * Handle clicks within the container, specifically on update buttons.
-         */
-        updateListContainer.addEventListener('click', async (event) => {
-            const button = event.target.closest('.update-btn');
-            if (!button) return;
-
-            const itemId = button.dataset.id;
-            const input = document.getElementById(`input-${itemId}`);
-            const newSuccessCriterion = input.value;
-            
-            const originalButtonText = button.innerHTML;
-            button.innerHTML = `<div class="spinner"></div>`;
-            button.disabled = true;
+            const originalButtonText = submitButton.innerHTML;
+            submitButton.innerHTML = `<div class="spinner mr-2"></div> Submitting...`;
+            submitButton.disabled = true;
 
             try {
-                const response = await fetch(API_UPDATE_CRITERION_URL, {
+                const response = await fetch(API_PROPOSE_NEW_CRITERION_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: itemId, successCriterion: newSuccessCriterion })
+                    body: JSON.stringify({ useCaseName, productName, successCriterion, measurement })
                 });
 
-                if (!response.ok) throw new Error('Update failed.');
-                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Submission failed with status ${response.status}. Response: ${errorText}`);
+                }
+
                 const result = await response.json();
+
                 if (result.success) {
-                    button.textContent = 'Updated!';
-                    button.classList.remove('bg-blue-600');
-                    button.classList.add('bg-green-600');
+                    formFeedback.textContent = 'New criterion proposed successfully! It is now pending review.';
+                    formFeedback.classList.add('text-green-600');
+                    proposeForm.reset();
                 } else {
-                    throw new Error(result.error || 'Unknown error');
+                    throw new Error(result.error || 'Submission was not successful.');
                 }
             } catch (error) {
-                console.error('Update error:', error);
-                button.textContent = 'Error!';
-                button.classList.remove('bg-blue-600');
-                button.classList.add('bg-red-600');
+                console.error('Proposal submission error:', error);
+                formFeedback.textContent = `Error: ${error.message}`;
+                formFeedback.classList.add('text-red-600');
             } finally {
-                // Revert button state after 2 seconds
-                setTimeout(() => {
-                    button.innerHTML = originalButtonText;
-                    button.disabled = false;
-                    button.classList.remove('bg-green-600', 'bg-red-600');
-                    button.classList.add('bg-blue-600');
-                }, 2000);
+                submitButton.innerHTML = originalButtonText;
+                submitButton.disabled = false;
             }
         });
     </script>

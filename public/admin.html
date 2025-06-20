@@ -32,6 +32,8 @@
         const pendingListContainer = document.getElementById('pending-list-container');
         const API_PENDING_CRITERIA_URL = '/api/pending-criteria';
         const API_APPROVE_CRITERION_URL = '/api/approve-criterion';
+        const API_REJECT_CRITERION_URL = '/api/reject-criterion';
+        const API_APPROVE_NEW_CRITERION_URL = '/api/approve-new-criterion';
 
         document.addEventListener('DOMContentLoaded', async () => {
             pendingListContainer.innerHTML = `<div class="p-8 text-center"><div class="spinner inline-block"></div></div>`;
@@ -53,58 +55,149 @@
             }
             let html = '';
             data.forEach(item => {
-                html += `
-                    <div class="suggestion-card border border-gray-200 rounded-lg p-4" id="pending-item-${item.pending_id}">
-                        <div class="font-semibold text-gray-800">${item.UseCase} (${item.Product})</div>
-                        <div class="mt-2 p-2 bg-gray-50 rounded">
-                            <p class="text-sm text-gray-500">Original:</p>
-                            <del>${item.original_criterion || '<em>(empty)</em>'}</del>
+                // Check if it's a new criterion proposal (use_case_id will be null)
+                if (item.use_case_id === null) {
+                    let proposedUseCaseName = '';
+                    let proposedProductName = '';
+                    let proposedSuccessCriterion = '';
+                    let proposedMeasurement = '';
+
+                    try {
+                        const originalData = JSON.parse(item.original_criterion);
+                        proposedUseCaseName = originalData.ucn || 'N/A';
+                        proposedProductName = originalData.pn || 'N/A';
+                        
+                        const suggestedData = JSON.parse(item.suggested_criterion);
+                        proposedSuccessCriterion = suggestedData.sc || 'N/A';
+                        proposedMeasurement = suggestedData.m || 'N/A';
+                    } catch (e) {
+                        console.error("Error parsing JSON for new proposal:", item, e);
+                    }
+
+                    html += `
+                        <div class="suggestion-card border border-blue-300 rounded-lg p-4 bg-blue-50" id="pending-item-${item.pending_id}">
+                            <div class="font-semibold text-gray-800 mb-1">New Criterion Proposal</div>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                                <strong class="text-gray-600">Use Case:</strong> <span>${proposedUseCaseName}</span>
+                                <strong class="text-gray-600">Product:</strong> <span>${proposedProductName}</span>
+                            </div>
+                            <div class="mt-2 p-2 bg-white rounded border border-gray-200">
+                                <p class="text-xs text-gray-500">Proposed Success Criterion:</p>
+                                <p class="text-sm">${proposedSuccessCriterion}</p>
+                            </div>
+                            <div class="mt-1 p-2 bg-white rounded border border-gray-200">
+                                <p class="text-xs text-gray-500">Proposed Measurement:</p>
+                                <p class="text-sm">${proposedMeasurement}</p>
+                            </div>
+                            <div class="mt-4 flex justify-end space-x-2">
+                                 <button class="reject-btn bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700"
+                                         data-pending-id="${item.pending_id}">Reject</button>
+                                 <button class="approve-btn bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700" 
+                                         data-pending-id="${item.pending_id}" 
+                                         data-proposal-type="new"
+                                         data-use-case-name="${encodeURIComponent(proposedUseCaseName)}"
+                                         data-product-name="${encodeURIComponent(proposedProductName)}"
+                                         data-success-criterion="${encodeURIComponent(proposedSuccessCriterion)}"
+                                         data-measurement="${encodeURIComponent(proposedMeasurement)}">Approve New</button>
+                            </div>
                         </div>
-                        <div class="mt-1 p-2 bg-green-50 rounded">
-                            <p class="text-sm text-gray-500">Suggested:</p>
-                            <ins>${item.suggested_criterion}</ins>
+                    `;
+                } else { // Existing criterion update suggestion
+                    html += `
+                        <div class="suggestion-card border border-gray-200 rounded-lg p-4" id="pending-item-${item.pending_id}">
+                            <div class="font-semibold text-gray-800">${item.UseCase} (${item.Product})</div>
+                            <div class="mt-2 p-2 bg-gray-50 rounded"><p class="text-sm text-gray-500">Original:</p><del>${item.original_criterion || '<em>(empty)</em>'}</del></div>
+                            <div class="mt-1 p-2 bg-green-50 rounded"><p class="text-sm text-gray-500">Suggested:</p><ins>${item.suggested_criterion}</ins></div>
+                            <div class="mt-4 flex justify-end space-x-2">
+                                 <button class="reject-btn bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700"
+                                         data-pending-id="${item.pending_id}">Reject</button>
+                                 <button class="approve-btn bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700" data-pending-id="${item.pending_id}" data-use-case-id="${item.use_case_id}" data-suggested-criterion="${encodeURIComponent(item.suggested_criterion)}" data-proposal-type="update">Approve Update</button>
+                            </div>
                         </div>
-                        <div class="mt-4 text-right">
-                             <button class="approve-btn bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700" data-pending-id="${item.pending_id}" data-use-case-id="${item.use_case_id}" data-suggested-criterion="${item.suggested_criterion}">Approve</button>
-                        </div>
-                    </div>
-                `;
+                    `;
+                }
             });
             pendingListContainer.innerHTML = html;
         }
 
         pendingListContainer.addEventListener('click', async (event) => {
-            const button = event.target.closest('.approve-btn');
+            const button = event.target.closest('.approve-btn, .reject-btn');
             if (!button) return;
             
-            const { pendingId, useCaseId, suggestedCriterion } = button.dataset;
+            const isApprove = button.classList.contains('approve-btn');
+            const { pendingId } = button.dataset;
 
             button.innerHTML = `<div class="spinner"></div>`;
             button.disabled = true;
 
             try {
-                const response = await fetch(API_APPROVE_CRITERION_URL, {
+                let response;
+                let payload;
+                let apiUrl;
+
+                if (isApprove) {
+                    const { proposalType } = button.dataset;
+                    if (proposalType === 'new') {
+                        apiUrl = API_APPROVE_NEW_CRITERION_URL;
+                        payload = {
+                            pending_id: parseInt(pendingId),
+                            useCaseName: decodeURIComponent(button.dataset.useCaseName),
+                            productName: decodeURIComponent(button.dataset.productName),
+                            successCriterion: decodeURIComponent(button.dataset.successCriterion),
+                            measurement: decodeURIComponent(button.dataset.measurement)
+                        };
+                    } else { // 'update'
+                        apiUrl = API_APPROVE_CRITERION_URL;
+                        payload = {
+                            pending_id: parseInt(pendingId),
+                            use_case_id: parseInt(button.dataset.useCaseId),
+                            suggested_criterion: decodeURIComponent(button.dataset.suggestedCriterion)
+                        };
+                    }
+                } else { // Reject
+                    if (!confirm('Are you sure you want to reject this suggestion? This cannot be undone.')) {
+                        button.innerHTML = 'Reject';
+                        button.disabled = false;
+                        return;
+                    }
+                    apiUrl = API_REJECT_CRITERION_URL;
+                    payload = { pending_id: parseInt(pendingId) };
+                }
+
+                response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pending_id: parseInt(pendingId), use_case_id: parseInt(useCaseId), suggested_criterion: suggestedCriterion })
+                    body: JSON.stringify(payload)
                 });
 
-                if (!response.ok) throw new Error('Approval failed');
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Action failed with status ${response.status}. Response: ${errorText}`);
+                }
+
                 const result = await response.json();
+
                 if (result.success) {
-                    // Remove the card from the UI on successful approval
-                    document.getElementById(`pending-item-${pendingId}`).remove();
-                     if (pendingListContainer.children.length === 0) {
+                    const itemToRemove = document.getElementById(`pending-item-${pendingId}`);
+                    if (itemToRemove) {
+                        itemToRemove.remove();
+                    }
+                    if (pendingListContainer.children.length === 0) {
                         renderPendingList([]);
                     }
                 } else {
-                    throw new Error(result.error || 'Approval error');
+                    throw new Error(result.error || 'Action failed');
                 }
-
             } catch(error) {
-                console.error('Approval error:', error);
-                alert('Failed to approve suggestion.');
-                button.innerHTML = 'Approve';
+                console.error('Action error:', error);
+                alert(error.message || 'Failed to perform action.');
+                // Restore button text based on type
+                if (isApprove) {
+                    const { proposalType } = button.dataset;
+                    button.innerHTML = proposalType === 'new' ? 'Approve New' : 'Approve Update';
+                } else {
+                    button.innerHTML = 'Reject';
+                }
                 button.disabled = false;
             }
         });
