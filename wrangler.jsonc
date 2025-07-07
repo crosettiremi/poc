@@ -32,7 +32,13 @@
     "database_name": "use-case-db",
     "database_id": "e41a7a07-e8df-42f9-aab3-a38e120bad9c"
   }
-]
+],
+"r2_buckets": [
+  {
+    "binding": "BUCKET",
+    "bucket_name": "poc-template"
+  }
+],
 
 	/**
 	 * Environment Variables

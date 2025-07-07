@@ -6,6 +6,13 @@
     <title>Use Case Report Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+    <script>
+        // Configure Tailwind to use class-based dark mode
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -15,17 +22,24 @@
             width: 100%;
         }
         .report-table th, .report-table td {
-            border: 1px solid #d1d5db;
+            border: 1px solid #d1d5db; /* Light mode border */
             padding: 12px;
             text-align: left;
+        }
+        html.dark .report-table th, html.dark .report-table td {
+            border-color: #4b5563; /* Dark mode border */
         }
         .report-table th {
             background-color: #f9a825;
             font-weight: 600;
+            color: #1f2937;
             text-align: center;
         }
         .report-table .notes-row {
-            background-color: #f3f3f3;
+            background-color: #f3f4f6; /* Light mode */
+        }
+        html.dark .report-table .notes-row {
+            background-color: #374151; /* Dark mode */
         }
         .report-table .notes-label {
             font-weight: bold;
@@ -33,6 +47,28 @@
         .report-table .merged-cell {
             vertical-align: top;
         }
+
+        /* --- Choices.js Dark Mode Styles --- */
+        html.dark .choices__inner {
+            background-color: #374151;
+            border-color: #4b5563;
+            color: #d1d5db;
+        }
+        html.dark .choices__list--dropdown, html.dark .choices__list[aria-expanded] {
+            background-color: #374151;
+            border-color: #4b5563;
+        }
+        html.dark .choices__list--dropdown .choices__item--selectable.is-highlighted {
+            background-color: #4b5563;
+        }
+        html.dark .choices__list--multiple .choices__item {
+            background-color: #4b5563;
+            border-color: #6b7280;
+        }
+        html.dark .choices[data-type*="select-multiple"] .choices__button, html.dark .choices[data-type*="text"] .choices__button {
+            border-left-color: #4b5563;
+        }
+        
         @media print {
             body * {
                 visibility: hidden;
@@ -52,14 +88,20 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
 
     <div class="container mx-auto p-4 md:p-8">
-        <div class="bg-white rounded-lg shadow-lg p-6 md:p-8 no-print">
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-4">Use Case Report Generator</h1>
-            <p class="text-gray-600 mb-6">Select a Use Case and/or a Product to generate a formatted report.</p>
+        <div class="absolute top-4 right-4 no-print">
+            <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-2.5">
+                <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM10 16a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM3.05 4.95a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm12.495 10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM4.464 14.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414z"></path></svg>
+            </button>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 md:p-8 no-print">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-4">Use Case Report Generator</h1>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">Select one or more Use Cases and/or Products to generate a formatted report.</p>
             
-            <!-- Navigation Button to Update Page -->
             <div class="mb-6">
                 <a href="/update.html" 
                    class="inline-block bg-teal-600 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-700 transition duration-300">
@@ -71,45 +113,78 @@
                 </a>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <!-- Use Case Dropdown -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
-                    <label for="useCaseFilter" class="block text-sm font-medium text-gray-700 mb-1">Use Case</label>
-                    <select id="useCaseFilter" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="all">All Use Cases</option>
-                    </select>
+                    <label for="useCaseFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Use Case(s)</label>
+                    <select id="useCaseFilter" multiple></select>
                 </div>
-                <!-- Product Dropdown -->
                 <div>
-                    <label for="productFilter" class="block text-sm font-medium text-gray-700 mb-1">Product</label>
-                    <select id="productFilter" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="all">All Products</option>
-                    </select>
+                    <label for="productFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product(s)</label>
+                    <select id="productFilter" multiple></select>
                 </div>
-                <!-- Action Buttons -->
-                <div class="flex items-end space-x-2 col-span-2">
-                    <button id="generateBtn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition duration-300">
-                        Generate
-                    </button>
-                    <button id="copyBtn" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 transition duration-300 hidden">
-                        Copy
-                    </button>
-                    <button id="printBtn" class="w-full bg-gray-700 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-800 transition duration-300 hidden">
-                        Print
-                    </button>
-                </div>
+            </div>
+            <div class="flex items-end space-x-2 mt-4">
+                <button id="generateBtn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition duration-300">
+                    Generate
+                </button>
+                <button id="copyBtn" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 transition duration-300 hidden">
+                    Copy
+                </button>
+                <button id="printBtn" class="w-full bg-gray-700 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-800 transition duration-300 hidden">
+                    Print
+                </button>
             </div>
             <div id="loading" class="text-center p-4 hidden">
                 <p>Loading...</p>
             </div>
         </div>
 
-        <div id="outputContainer" class="mt-8 bg-white rounded-lg shadow-lg print-area">
-            <!-- Formatted table will be inserted here -->
-        </div>
+        <div id="outputContainer" class="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg print-area">
+            </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
     <script>
+        // --- Theme Toggler ---
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const darkIcon = document.getElementById('theme-toggle-dark-icon');
+        const lightIcon = document.getElementById('theme-toggle-light-icon');
+
+        // Check theme on initial load
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            lightIcon.classList.remove('hidden');
+        } else {
+            document.documentElement.classList.remove('dark');
+            darkIcon.classList.remove('hidden');
+        }
+
+        themeToggleBtn.addEventListener('click', () => {
+            // toggle icons
+            darkIcon.classList.toggle('hidden');
+            lightIcon.classList.toggle('hidden');
+
+            // if set via local storage previously
+            if (localStorage.getItem('color-theme')) {
+                if (localStorage.getItem('color-theme') === 'light') {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('color-theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('color-theme', 'light');
+                }
+            // if NOT set via local storage previously
+            } else {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('color-theme', 'light');
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('color-theme', 'dark');
+                }
+            }
+        });
+
         // --- Element References ---
         const useCaseFilter = document.getElementById('useCaseFilter');
         const productFilter = document.getElementById('productFilter');
@@ -123,30 +198,40 @@
         const API_FILTERS_URL = '/api/filters';
         const API_USECASES_URL = '/api/usecases';
 
+        // --- Choices.js Instances ---
+        let useCaseChoices, productChoices;
+
         // --- Event Listeners ---
-        document.addEventListener('DOMContentLoaded', populateFilters);
+        document.addEventListener('DOMContentLoaded', () => {
+            useCaseChoices = new Choices(useCaseFilter, { removeItemButton: true, placeholder: true, placeholderValue: 'Select or type to search...' });
+            productChoices = new Choices(productFilter, { removeItemButton: true, placeholder: true, placeholderValue: 'Select or type to search...' });
+            populateFilters();
+        });
+        
         generateBtn.addEventListener('click', generateReport);
         printBtn.addEventListener('click', () => window.print());
         copyBtn.addEventListener('click', copyReportToClipboard);
 
-        /**
-         * Fetches unique use cases and products to populate dropdowns on page load.
-         */
         async function populateFilters() {
             try {
                 const response = await fetch(API_FILTERS_URL);
                 if (!response.ok) throw new Error('Failed to fetch filter data.');
                 const data = await response.json();
                 
-                data.useCases.forEach(uc => {
-                    const option = new Option(uc.UseCase, uc.UseCase);
-                    useCaseFilter.add(option);
-                });
-                
+                const useCaseItems = data.useCases.map(uc => ({ value: uc.UseCase, label: uc.UseCase }));
+                useCaseChoices.setChoices(useCaseItems, 'value', 'label', true);
+
+                const productSet = new Set();
                 data.products.forEach(p => {
-                    const option = new Option(p.Product, p.Product);
-                    productFilter.add(option);
+                    p.Product.split(';').forEach(indivP => {
+                        const trimmedP = indivP.trim();
+                        if (trimmedP) productSet.add(trimmedP);
+                    });
                 });
+
+                const sortedProducts = Array.from(productSet).sort();
+                const productItems = sortedProducts.map(p => ({ value: p, label: p }));
+                productChoices.setChoices(productItems, 'value', 'label', true);
 
             } catch (error) {
                 console.error('Error populating filters:', error);
@@ -154,12 +239,14 @@
             }
         }
         
-        /**
-         * Fetches data based on filters and triggers table rendering.
-         */
         async function generateReport() {
-            const selectedUseCase = useCaseFilter.value;
-            const selectedProduct = productFilter.value;
+            const selectedUseCases = useCaseChoices.getValue(true);
+            const selectedProducts = productChoices.getValue(true);
+
+            if (selectedUseCases.length === 0 && selectedProducts.length === 0) {
+                 outputContainer.innerHTML = `<p class="p-8 text-center text-gray-500 dark:text-gray-400">Please select at least one Use Case or Product to generate a report.</p>`;
+                 return;
+            }
 
             loadingDiv.classList.remove('hidden');
             outputContainer.innerHTML = '';
@@ -168,18 +255,25 @@
 
             try {
                 const url = new URL(API_USECASES_URL, window.location.origin);
-                url.searchParams.append('useCase', selectedUseCase);
-                url.searchParams.append('product', selectedProduct);
-                
                 const response = await fetch(url);
-                if (!response.ok) throw new Error('Failed to generate report.');
+                if (!response.ok) throw new Error('Failed to fetch report data.');
                 
-                const data = await response.json();
-                renderTable(data);
-                if(data.length > 0) {
+                const allData = await response.json();
+
+                const filteredData = allData.filter(item => {
+                    const useCaseMatch = selectedUseCases.length === 0 || selectedUseCases.includes(item.UseCase);
+                    const itemProducts = item.Product.split(';').map(p => p.trim());
+                    const productMatch = selectedProducts.length === 0 || selectedProducts.some(selectedP => itemProducts.includes(selectedP));
+                    return useCaseMatch && productMatch;
+                });
+                
+                renderTable(filteredData);
+
+                if(filteredData.length > 0) {
                     printBtn.classList.remove('hidden');
                     copyBtn.classList.remove('hidden');
                 }
+
             } catch (error) {
                 console.error('Error generating report:', error);
                 outputContainer.innerHTML = `<p class="text-red-500 p-4">Could not generate the report. Please try again.</p>`;
@@ -188,28 +282,89 @@
             }
         }
 
-        /**
-         * Copies the generated report table to the user's clipboard.
-         */
         function copyReportToClipboard() {
             const reportTable = outputContainer.querySelector('.report-table');
             if (!reportTable) return;
 
-            // Select the table content
-            const range = document.createRange();
-            range.selectNode(reportTable);
-            window.getSelection().removeAllRanges(); // Clear previous selections
-            window.getSelection().addRange(range); // Select the table
+            // 1. Create a clone of the table for copying
+            const clone = reportTable.cloneNode(true);
+            
+            // 2. Create a temporary container and append the clone to the document body, but off-screen
+            const tempContainer = document.createElement('div');
+            tempContainer.style.position = 'absolute';
+            tempContainer.style.left = '-9999px'; // Position it off-screen
+            document.body.appendChild(tempContainer);
+            tempContainer.appendChild(clone);
 
+            // 3. Apply styles to the clone for better pasting into documents
+            clone.style.width = '100%';
+            clone.style.tableLayout = 'fixed'; // Ensure column widths are respected
+            clone.style.color = 'black';
+            clone.style.backgroundColor = 'white';
+            clone.style.writingMode = 'horizontal-tb';
+
+            // Set a baseline style for all cells and enable word wrapping
+            const allCells = clone.querySelectorAll('td, th');
+            allCells.forEach(cell => {
+                cell.style.color = 'black';
+                cell.style.backgroundColor = 'white';
+                cell.style.writingMode = 'horizontal-tb';
+                cell.style.wordWrap = 'break-word';
+                cell.style.fontWeight = 'normal'; // Set default font weight
+            });
+
+            // Apply percentage-based widths to header columns
+            const headerCells = clone.querySelectorAll('th');
+            if (headerCells.length === 5) {
+                headerCells[0].style.width = '20%'; // Use Case
+                headerCells[1].style.width = '15%'; // Product
+                headerCells[2].style.width = '30%'; // Success Criteria
+                headerCells[3].style.width = '25%'; // Measurement
+                headerCells[4].style.width = '10%'; // Outcome
+            }
+            
+            // Remove fixed width from outcome cells to allow percentage width to work
+            const outcomeCells = clone.querySelectorAll('.outcome-cell');
+            outcomeCells.forEach(cell => {
+                cell.style.width = ''; 
+            });
+
+
+            // Re-apply specific background colors and bold weight for header cells
+            headerCells.forEach(th => {
+                th.style.backgroundColor = '#f9a825';
+                th.style.color = '#1f2937';
+                th.style.fontWeight = 'bold';
+            });
+            
+            // Re-apply bold weight for the "Notes:" label
+            const notesLabels = clone.querySelectorAll('.notes-label');
+            notesLabels.forEach(label => {
+                label.style.fontWeight = 'bold';
+            });
+
+            // Re-apply specific background for notes-row cells
+            const notesRows = clone.querySelectorAll('.notes-row');
+            notesRows.forEach(row => {
+                const notesCells = row.querySelectorAll('td');
+                notesCells.forEach(cell => {
+                    cell.style.backgroundColor = '#f3f4f6';
+                });
+            });
+
+            // 4. Select the content of the styled, cloned table
+            const range = document.createRange();
+            range.selectNode(clone);
+            window.getSelection().removeAllRanges(); // Clear any current selection
+            window.getSelection().addRange(range);   // Select the clone
+
+            // 5. Execute the copy command and manage UI feedback
             try {
-                // Execute the copy command
                 const successful = document.execCommand('copy');
                 if (successful) {
                     const originalText = copyBtn.textContent;
                     copyBtn.textContent = 'Copied!';
-                    setTimeout(() => {
-                        copyBtn.textContent = originalText;
-                    }, 2000); // Revert back after 2 seconds
+                    setTimeout(() => { copyBtn.textContent = originalText; }, 2000);
                 } else {
                     alert('Copy command was not successful. Please copy manually.');
                 }
@@ -218,54 +373,31 @@
                 alert('Failed to copy. Please try again or copy manually.');
             }
 
-            // Unselect the text
+            // 6. Clean up by removing the selection and the temporary container
             window.getSelection().removeAllRanges();
+            document.body.removeChild(tempContainer);
         }
 
-        /**
-         * Renders the formatted table from the provided data.
-         * @param {Array} data - The raw data from the API.
-         */
         function renderTable(data) {
             if (!data || data.length === 0) {
-                outputContainer.innerHTML = `<p class="p-8 text-center text-gray-500">No use cases found for the selected criteria.</p>`;
+                outputContainer.innerHTML = `<p class="p-8 text-center text-gray-500 dark:text-gray-400">No use cases found for the selected criteria.</p>`;
                 return;
             }
 
             const groupedData = data.reduce((acc, item) => {
                 const key = `${item.UseCase}|${item.Product}`;
                 if (!acc[key]) {
-                    acc[key] = {
-                        useCase: item.UseCase,
-                        product: item.Product,
-                        criteria: []
-                    };
+                    acc[key] = { useCase: item.UseCase, product: item.Product, criteria: [] };
                 }
-                acc[key].criteria.push({
-                    successCriterion: item.SuccessCriterion,
-                    measurement: item.Measurement
-                });
+                acc[key].criteria.push({ successCriterion: item.SuccessCriterion, measurement: item.Measurement });
                 return acc;
             }, {});
 
-            let tableHTML = `
-                <table class="report-table">
-                    <thead>
-                        <tr>
-                            <th>Use Case</th>
-                            <th>Product</th>
-                            <th>Success Criteria</th>
-                            <th>Measurement</th>
-                            <th>Outcome</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+            let tableHTML = `<table class="report-table"><thead><tr><th>Use Case</th><th>Product</th><th>Success Criteria</th><th>Measurement</th><th>Outcome</th></tr></thead><tbody>`;
             
             for (const key in groupedData) {
                 const group = groupedData[key];
-                const criteriaCount = group.criteria.length;
-                const totalRows = criteriaCount * 2; 
+                const totalRows = group.criteria.length * 2; 
 
                 group.criteria.forEach((item, index) => {
                     tableHTML += `<tr>`;
@@ -276,16 +408,15 @@
                     tableHTML += `
                         <td>${item.successCriterion}</td>
                         <td>${item.measurement}</td>
-                        <td style="width: 150px;">
-                            <label class="flex items-center space-x-2"><input type="checkbox" class="h-4 w-4"><span>Pass</span></label>
-							<label class="flex items-center space-x-2"><input type="checkbox" class="h-4 w-4"><span>Fail</span></label>
+                        <td class="outcome-cell" style="width: 150px;">
+                            <label class="flex items-center space-x-2"><input type="checkbox" class="h-4 w-4 rounded bg-gray-200 dark:bg-gray-600 border-gray-300 dark:border-gray-500"><span>Pass</span></label>
+							<label class="flex items-center space-x-2"><input type="checkbox" class="h-4 w-4 rounded bg-gray-200 dark:bg-gray-600 border-gray-300 dark:border-gray-500"><span>Fail</span></label>
                         </td>
                     </tr>
                     <tr class="notes-row">
                         <td class="notes-label">Notes:</td>
                         <td></td>
-                    </tr>
-                    `;
+                    </tr>`;
                 });
             }
 

@@ -6,52 +6,54 @@
     <title>Propose New Success Criterion</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = { darkMode: 'class' };
+    </script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .spinner {
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #3498db;
-            border-radius: 50%;
-            width: 16px;
-            height: 16px;
-            animation: spin 1s linear infinite;
-        }
+        body { font-family: 'Inter', sans-serif; }
+        .spinner { border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
 
     <div class="container mx-auto p-4 md:p-8">
-        <div class="bg-white rounded-lg shadow-lg p-6 md:p-8">
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Propose New Success Criterion</h1>
-            <p class="text-gray-600 mb-6">Submit a new Use Case, Product, Success Criterion, and Measurement for review. It will be added to the system after approval.</p>
-            <a href="/" class="text-blue-600 hover:underline mb-6 block">&larr; Back to Report Generator</a>
+        <!-- Theme Toggler -->
+        <div class="absolute top-4 right-4">
+            <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-2.5">
+                <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM10 16a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM3.05 4.95a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm12.495 10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM4.464 14.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414z"></path></svg>
+            </button>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 md:p-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">Propose New Success Criterion</h1>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">Submit a new Use Case, Product, Success Criterion, and Measurement for review.</p>
+            <a href="/" class="text-blue-500 dark:text-blue-400 hover:underline mb-6 block">&larr; Back to Report Generator</a>
             
             <form id="proposeNewCriterionForm" class="space-y-6">
                 <div>
-                    <label for="newUseCaseName" class="block text-sm font-medium text-gray-700 mb-1">Use Case Name</label>
+                    <label for="newUseCaseName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Use Case Name</label>
                     <input type="text" id="newUseCaseName" name="newUseCaseName" required
-                           class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                           class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
                            placeholder="e.g., User Authentication">
                 </div>
                 <div>
-                    <label for="newProductName" class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+                    <label for="newProductName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product Name</label>
                     <input type="text" id="newProductName" name="newProductName" required
-                           class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                           class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
                            placeholder="e.g., Web Application">
                 </div>
                 <div>
-                    <label for="newSuccessCriterion" class="block text-sm font-medium text-gray-700 mb-1">Success Criterion</label>
+                    <label for="newSuccessCriterion" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Success Criterion</label>
                     <textarea id="newSuccessCriterion" name="newSuccessCriterion" rows="3" required
-                              class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                              class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
                               placeholder="e.g., User can log in with valid credentials within 2 seconds."></textarea>
                 </div>
                 <div>
-                    <label for="newMeasurement" class="block text-sm font-medium text-gray-700 mb-1">Measurement</label>
+                    <label for="newMeasurement" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Measurement</label>
                     <textarea id="newMeasurement" name="newMeasurement" rows="2" required
-                              class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                              class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
                               placeholder="e.g., Stopwatch timing from button click to dashboard visibility."></textarea>
                 </div>
                 <div>
@@ -67,10 +69,45 @@
     </div>
 
     <script>
+        // --- Theme Toggler ---
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const darkIcon = document.getElementById('theme-toggle-dark-icon');
+        const lightIcon = document.getElementById('theme-toggle-light-icon');
+
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            lightIcon.classList.remove('hidden');
+        } else {
+            document.documentElement.classList.remove('dark');
+            darkIcon.classList.remove('hidden');
+        }
+
+        themeToggleBtn.addEventListener('click', () => {
+            darkIcon.classList.toggle('hidden');
+            lightIcon.classList.toggle('hidden');
+            if (localStorage.getItem('color-theme')) {
+                if (localStorage.getItem('color-theme') === 'light') {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('color-theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('color-theme', 'light');
+                }
+            } else {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('color-theme', 'light');
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('color-theme', 'dark');
+                }
+            }
+        });
+
         const proposeForm = document.getElementById('proposeNewCriterionForm');
         const submitButton = document.getElementById('submitProposalBtn');
         const formFeedback = document.getElementById('formFeedback');
-        const API_PROPOSE_NEW_CRITERION_URL = '/api/propose-new-criterion'; // Ensure this matches your backend
+        const API_PROPOSE_NEW_CRITERION_URL = '/api/propose-new-criterion';
 
         proposeForm.addEventListener('submit', async (event) => {
             event.preventDefault();
@@ -85,7 +122,7 @@
 
             if (!useCaseName || !productName || !successCriterion || !measurement) {
                 formFeedback.textContent = 'All fields are required.';
-                formFeedback.classList.add('text-red-600');
+                formFeedback.className = 'mt-4 text-sm text-red-600 dark:text-red-400';
                 return;
             }
 
@@ -109,7 +146,7 @@
 
                 if (result.success) {
                     formFeedback.textContent = 'New criterion proposed successfully! It is now pending review.';
-                    formFeedback.classList.add('text-green-600');
+                    formFeedback.className = 'mt-4 text-sm text-green-600 dark:text-green-400';
                     proposeForm.reset();
                 } else {
                     throw new Error(result.error || 'Submission was not successful.');
@@ -117,7 +154,7 @@
             } catch (error) {
                 console.error('Proposal submission error:', error);
                 formFeedback.textContent = `Error: ${error.message}`;
-                formFeedback.classList.add('text-red-600');
+                formFeedback.className = 'mt-4 text-sm text-red-600 dark:text-red-400';
             } finally {
                 submitButton.innerHTML = originalButtonText;
                 submitButton.disabled = false;
