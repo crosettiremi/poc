@@ -1,22 +1,100 @@
 import { Hono } from 'hono';
 import { serveStatic } from 'hono/cloudflare-workers';
+import PizZip from 'pizzip';
+import Docxtemplater from 'docxtemplater';
 
 // --- Type Definitions ---
 type Env = {
   Bindings: {
     DB: D1Database;
-    // Binding for the R2 bucket containing the PoC template
     POC_TEMPLATE: R2Bucket;
   };
 };
 
 type UseCase = { UseCase: string; }
 type Product = { Product: string; }
+type SuccessCriterion = {
+    UseCase: string;
+    Product: string;
+    SuccessCriterion: string;
+    Measurement: string;
+};
 
 const app = new Hono<Env>();
 
 // --- API Routes ---
 const api = app.basePath('/api');
+
+// --- Helper Functions ---
+
+/**
+ * Escapes special XML characters to prevent breaking the DOCX structure.
+ * @param str The input string.
+ * @returns The escaped string.
+ */
+function escapeXml(str: string): string {
+    return str.replace(/[<>&'"]/g, (c) => {
+        switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&apos;';
+            case '"': return '&quot;';
+            default: return c;
+        }
+    });
+}
+
+
+/**
+ * Creates the OpenXML markup for the success criteria table.
+ * @param data The array of success criteria objects.
+ * @returns A string of OpenXML.
+ */
+function createTableXml(data: SuccessCriterion[]): string {
+    if (!data || data.length === 0) {
+        return ''; // Return empty string if there's no data
+    }
+
+    // Define the table header row
+    const headerRow = `
+        <w:tr>
+            <w:tc><w:p><w:pPr><w:pStyle w:val="Header"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>Use Case</w:t></w:r></w:p></w:tc>
+            <w:tc><w:p><w:pPr><w:pStyle w:val="Header"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>Product</w:t></w:r></w:p></w:tc>
+            <w:tc><w:p><w:pPr><w:pStyle w:val="Header"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>Success Criterion</w:t></w:r></w:p></w:tc>
+            <w:tc><w:p><w:pPr><w:pStyle w:val="Header"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>Measurement</w:t></w:r></w:p></w:tc>
+        </w:tr>
+    `;
+
+    // Create a row for each data item, ensuring all content is escaped
+    const dataRows = data.map(item => `
+        <w:tr>
+            <w:tc><w:p><w:r><w:t>${escapeXml(item.UseCase)}</w:t></w:r></w:p></w:tc>
+            <w:tc><w:p><w:r><w:t>${escapeXml(item.Product)}</w:t></w:r></w:p></w:tc>
+            <w:tc><w:p><w:r><w:t>${escapeXml(item.SuccessCriterion)}</w:t></w:r></w:p></w:tc>
+            <w:tc><w:p><w:r><w:t>${escapeXml(item.Measurement)}</w:t></w:r></w:p></w:tc>
+        </w:tr>
+    `).join('');
+
+    // Return the full table XML
+    return `
+        <w:tbl>
+            <w:tblPr>
+                <w:tblStyle w:val="GridTable4-Accent5"/>
+                <w:tblW w:w="0" w:type="auto"/>
+                <w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>
+            </w:tblPr>
+            <w:tblGrid>
+                <w:gridCol w:w="2310"/>
+                <w:gridCol w:w="1590"/>
+                <w:gridCol w:w="3000"/>
+                <w:gridCol w:w="2500"/>
+            </w:tblGrid>
+            ${headerRow}
+            ${dataRows}
+        </w:tbl>
+    `;
+}
 
 // GET /api/filters - Fetches distinct values for dropdowns
 api.get('/filters', async (c) => {
@@ -77,37 +155,54 @@ api.get('/usecases', async (c) => {
 });
 
 /**
- * NEW ENDPOINT
- * GET /api/get-poc-template - Securely fetches the .docx template from the private R2 bucket.
+ * POST /api/generate-poc-document - Generates a DOCX file with success criteria.
  */
-api.get('/get-poc-template', async (c) => {
-  // The key (filename) of the template in your R2 bucket.
-  const templateKey = "Generate POC Plan Template (Short) - In Development.docx";
+api.post('/generate-poc-document', async (c) => {
+    const templateKey = "Generate POC Plan Template (Short) - In Development.docx";
+    try {
+        const criteriaData = await c.req.json<SuccessCriterion[]>();
+        if (!criteriaData || !Array.isArray(criteriaData)) {
+            return c.json({ error: 'Invalid report data provided.' }, 400);
+        }
 
-  try {
-    // Access the R2 bucket via the binding
-    const object = await c.env.POC_TEMPLATE.get(templateKey);
+        const object = await c.env.POC_TEMPLATE.get(templateKey);
+        if (object === null) {
+            console.error(`Template object '${templateKey}' not found in R2 bucket.`);
+            return c.json({ error: 'POC template file not found.' }, 404);
+        }
+        const templateArrayBuffer = await object.arrayBuffer();
 
-    if (object === null) {
-      console.error(`Template object '${templateKey}' not found in R2 bucket.`);
-      return c.json({ error: 'POC template file not found.' }, 404);
+        const zip = new PizZip(templateArrayBuffer);
+        
+        // Initialize docxtemplater without the custom parser
+        const doc = new Docxtemplater(zip, {
+            paragraphLoop: true,
+            linebreaks: true,
+        });
+        
+        // Instead of using a parser, pass the data to the render method.
+        // The key 'SUCCESS_CRITERIA_TABLE' must match the tag in your template.
+        doc.render({
+            SUCCESS_CRITERIA_TABLE: createTableXml(criteriaData)
+        });
+
+        const generatedDocBuffer = doc.getZip().generate({
+            type: 'blob',
+            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        });
+
+        const headers = new Headers({
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'Content-Disposition': 'attachment; filename="Proof_of_Concept_Plan.docx"'
+        });
+
+        return new Response(generatedDocBuffer, { headers });
+
+    } catch (e) {
+        console.error('Failed to generate PoC document:', e);
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        return c.json({ error: 'Could not generate the PoC document.', details: errorMessage }, 500);
     }
-
-    // Set the appropriate headers for a file download
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set('etag', object.httpEtag);
-    headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-
-    // Return the file's content directly in the response
-    return new Response(object.body, {
-      headers,
-    });
-
-  } catch (e) {
-    console.error('Failed to fetch template from R2:', e);
-    return c.json({ error: 'Could not fetch template from R2 bucket.' }, 500);
-  }
 });
 
 

@@ -47,6 +47,8 @@
         .report-table .merged-cell {
             vertical-align: top;
         }
+        .spinner { border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; margin-right: 8px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         /* --- Choices.js Dark Mode Styles --- */
         html.dark .choices__inner {
@@ -123,7 +125,7 @@
                     <select id="productFilter" multiple></select>
                 </div>
             </div>
-            <div class="flex items-end space-x-2 mt-4">
+            <div class="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-2 mt-4">
                 <button id="generateBtn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition duration-300">
                     Generate
                 </button>
@@ -132,6 +134,9 @@
                 </button>
                 <button id="printBtn" class="w-full bg-gray-700 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-800 transition duration-300 hidden">
                     Print
+                </button>
+                <button id="downloadPocBtn" class="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition duration-300 hidden flex items-center justify-center">
+                    Download PoC
                 </button>
             </div>
             <div id="loading" class="text-center p-4 hidden">
@@ -160,11 +165,8 @@
         }
 
         themeToggleBtn.addEventListener('click', () => {
-            // toggle icons
             darkIcon.classList.toggle('hidden');
             lightIcon.classList.toggle('hidden');
-
-            // if set via local storage previously
             if (localStorage.getItem('color-theme')) {
                 if (localStorage.getItem('color-theme') === 'light') {
                     document.documentElement.classList.add('dark');
@@ -173,7 +175,6 @@
                     document.documentElement.classList.remove('dark');
                     localStorage.setItem('color-theme', 'light');
                 }
-            // if NOT set via local storage previously
             } else {
                 if (document.documentElement.classList.contains('dark')) {
                     document.documentElement.classList.remove('dark');
@@ -191,15 +192,18 @@
         const generateBtn = document.getElementById('generateBtn');
         const printBtn = document.getElementById('printBtn');
         const copyBtn = document.getElementById('copyBtn');
+        const downloadPocBtn = document.getElementById('downloadPocBtn');
         const outputContainer = document.getElementById('outputContainer');
         const loadingDiv = document.getElementById('loading');
         
         // --- API URLs ---
         const API_FILTERS_URL = '/api/filters';
         const API_USECASES_URL = '/api/usecases';
+        const API_GENERATE_POC_URL = '/api/generate-poc-document';
 
-        // --- Choices.js Instances ---
+        // --- Choices.js Instances & Data Store ---
         let useCaseChoices, productChoices;
+        let lastFilteredData = []; // Store the last fetched data
 
         // --- Event Listeners ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -211,6 +215,7 @@
         generateBtn.addEventListener('click', generateReport);
         printBtn.addEventListener('click', () => window.print());
         copyBtn.addEventListener('click', copyReportToClipboard);
+        downloadPocBtn.addEventListener('click', downloadPocDocument);
 
         async function populateFilters() {
             try {
@@ -252,6 +257,8 @@
             outputContainer.innerHTML = '';
             printBtn.classList.add('hidden');
             copyBtn.classList.add('hidden');
+            downloadPocBtn.classList.add('hidden');
+            lastFilteredData = []; // Clear previous data
 
             try {
                 const url = new URL(API_USECASES_URL, window.location.origin);
@@ -267,11 +274,13 @@
                     return useCaseMatch && productMatch;
                 });
                 
+                lastFilteredData = filteredData; // Store data for other functions
                 renderTable(filteredData);
 
                 if(filteredData.length > 0) {
                     printBtn.classList.remove('hidden');
                     copyBtn.classList.remove('hidden');
+                    downloadPocBtn.classList.remove('hidden');
                 }
 
             } catch (error) {
@@ -282,38 +291,85 @@
             }
         }
 
+        async function downloadPocDocument() {
+            if (lastFilteredData.length === 0) {
+                alert("No data available to generate a document. Please generate a report first.");
+                return;
+            }
+
+            const originalButtonContent = downloadPocBtn.innerHTML;
+            downloadPocBtn.innerHTML = `<span class="spinner"></span>Generating...`;
+            downloadPocBtn.disabled = true;
+
+            try {
+                const response = await fetch(API_GENERATE_POC_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(lastFilteredData)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to generate document on the server.');
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                // Get filename from response header, or use a default
+                const contentDisposition = response.headers.get('content-disposition');
+                let filename = "Proof_of_Concept_Plan.docx";
+                if (contentDisposition && contentDisposition.indexOf('attachment') !== -1) {
+                    const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                    const matches = filenameRegex.exec(contentDisposition);
+                    if (matches != null && matches[1]) {
+                        filename = matches[1].replace(/['"]/g, '');
+                    }
+                }
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+            } catch(error) {
+                console.error("Error downloading PoC document:", error);
+                alert("An error occurred while generating the document: " + error.message);
+            } finally {
+                downloadPocBtn.innerHTML = originalButtonContent;
+                downloadPocBtn.disabled = false;
+            }
+        }
+
+
         function copyReportToClipboard() {
             const reportTable = outputContainer.querySelector('.report-table');
             if (!reportTable) return;
 
-            // 1. Create a clone of the table for copying
             const clone = reportTable.cloneNode(true);
-            
-            // 2. Create a temporary container and append the clone to the document body, but off-screen
             const tempContainer = document.createElement('div');
             tempContainer.style.position = 'absolute';
-            tempContainer.style.left = '-9999px'; // Position it off-screen
+            tempContainer.style.left = '-9999px'; 
             document.body.appendChild(tempContainer);
             tempContainer.appendChild(clone);
 
-            // 3. Apply styles to the clone for better pasting into documents
             clone.style.width = '100%';
-            clone.style.tableLayout = 'fixed'; // Ensure column widths are respected
+            clone.style.tableLayout = 'fixed';
             clone.style.color = 'black';
             clone.style.backgroundColor = 'white';
             clone.style.writingMode = 'horizontal-tb';
 
-            // Set a baseline style for all cells and enable word wrapping
             const allCells = clone.querySelectorAll('td, th');
             allCells.forEach(cell => {
                 cell.style.color = 'black';
                 cell.style.backgroundColor = 'white';
                 cell.style.writingMode = 'horizontal-tb';
                 cell.style.wordWrap = 'break-word';
-                cell.style.fontWeight = 'normal'; // Set default font weight
+                cell.style.fontWeight = 'normal';
             });
 
-            // Apply percentage-based widths to header columns
             const headerCells = clone.querySelectorAll('th');
             if (headerCells.length === 5) {
                 headerCells[0].style.width = '20%'; // Use Case
@@ -323,42 +379,29 @@
                 headerCells[4].style.width = '10%'; // Outcome
             }
             
-            // Remove fixed width from outcome cells to allow percentage width to work
             const outcomeCells = clone.querySelectorAll('.outcome-cell');
-            outcomeCells.forEach(cell => {
-                cell.style.width = ''; 
-            });
+            outcomeCells.forEach(cell => { cell.style.width = ''; });
 
-
-            // Re-apply specific background colors and bold weight for header cells
             headerCells.forEach(th => {
                 th.style.backgroundColor = '#f9a825';
                 th.style.color = '#1f2937';
                 th.style.fontWeight = 'bold';
             });
             
-            // Re-apply bold weight for the "Notes:" label
             const notesLabels = clone.querySelectorAll('.notes-label');
-            notesLabels.forEach(label => {
-                label.style.fontWeight = 'bold';
-            });
+            notesLabels.forEach(label => { label.style.fontWeight = 'bold'; });
 
-            // Re-apply specific background for notes-row cells
             const notesRows = clone.querySelectorAll('.notes-row');
             notesRows.forEach(row => {
                 const notesCells = row.querySelectorAll('td');
-                notesCells.forEach(cell => {
-                    cell.style.backgroundColor = '#f3f4f6';
-                });
+                notesCells.forEach(cell => { cell.style.backgroundColor = '#f3f4f6'; });
             });
 
-            // 4. Select the content of the styled, cloned table
             const range = document.createRange();
             range.selectNode(clone);
-            window.getSelection().removeAllRanges(); // Clear any current selection
-            window.getSelection().addRange(range);   // Select the clone
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
 
-            // 5. Execute the copy command and manage UI feedback
             try {
                 const successful = document.execCommand('copy');
                 if (successful) {
@@ -373,7 +416,6 @@
                 alert('Failed to copy. Please try again or copy manually.');
             }
 
-            // 6. Clean up by removing the selection and the temporary container
             window.getSelection().removeAllRanges();
             document.body.removeChild(tempContainer);
         }
